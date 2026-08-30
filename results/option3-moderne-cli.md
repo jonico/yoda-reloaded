@@ -174,3 +174,108 @@ suggested `curl` reproduction. That token should be rotated.
   application benchmark below.
 - **"Sites converted" for the private four repos.** `mod run` never executed, so there is no
   figure. Not zero - unmeasurable under the current licence state.
+
+---
+
+# Addendum: the full-set measurement, after the repos were made public
+
+The licence gate above was resolved the only way it can be: `ccfmaster-reloaded`,
+`core-reloaded` and `gui-reloaded` were made **public** (their upstreams already were, and the
+CCF project is Apache-2.0 throughout - attested by its former project lead). `kiga3000-reloaded`
+stayed private. That produced a clean natural experiment: **one command, one directory, four repos,
+three public and one private.**
+
+```
+▶ jonico/kiga3000-reloaded@modcli
+    ✗ A valid license is required: this repository is not an open source repository.
+▶ jonico/ccfmaster-reloaded@modcli   → Fix results at .../fix.patch
+▶ jonico/gui-reloaded@modcli         → Fix results at .../fix.patch
+▶ jonico/core-reloaded@modcli        → Fix results at .../fix.patch
+MOD PARTIALLY SUCCEEDED
+```
+
+The gate keys on **repository visibility**, nothing else. Same recipe, same LSTs, same machine.
+
+## Measured on the full set
+
+| Operation | Scope | Wall clock |
+|---|---|---:|
+| `mod build` (cold) | 4 repos | **274.8 s** |
+| `mod run` (warm LSTs) | 3 public repos, ~2,600 sites | **8.6 s** |
+| `mod git apply` | 3 repos | 1 s |
+| `mod exec -- mvn clean test` | 3 repos | **221.1 s** |
+| `mod study --csv` | 3 repos | 1 s |
+
+`mod run` at 8.6 s for ~2,600 sites across three repositories is the strongest number Option 3
+produces. The build-plugin path needed 266 s for `core` alone.
+
+## Sites converted, and the AspectJ gap quantified
+
+| Repo | Arm A (plugin) | Arm B (hand) | **Option 3 (CLI)** |
+|---|---:|---:|---:|
+| core | 1,363 | 1,350 | **1,363** — identical to Arm A |
+| gui | 1,856 | 1,734 | **1,824**, 7 left |
+| ccfmaster | 731 | 731 | **392**, 262 left |
+
+`core` matches Arm A exactly. `gui` is within 2%. **`ccfmaster` is 46% short, and the reason is
+precise:**
+
+| ccfmaster sources | converted | remaining |
+|---|---:|---:|
+| `.java` | **392** | 1 |
+| `.aj` (AspectJ ITDs) | **0** | **261** |
+
+The CLI converted essentially every Java site and **not one** AspectJ site. Its own data table
+confirms it independently: 396 rows, `by extension: {'java': 396}` - zero `.aj`.
+
+This is the same blind spot Arm A hit, but with a different outcome. Arm A **worked around it** by
+building a custom runner that lifts conditions out of `.aj` files into synthetic compilation units
+and splices them back, recovering all 335 sites. The CLI offers no equivalent hook: recipes run
+against LSTs the CLI builds, and it builds none for `.aj`. **On this corpus the missing AspectJ
+parser costs Option 3 46% of one repository, unavoidably.**
+
+## Correctness on the full set: identical to baseline
+
+Verified via `mod exec`, counts read from each `.moderne/exec/<id>/exec.log`:
+
+| Repo | Baseline | After Option 3 |
+|---|---|---|
+| ccfmaster | 488 / 7 / 6 / 2 (473 pass) | **488 / 7 / 6 / 2** |
+| core | 21 / 0 / 0 / 0 | **21 / 0 / 0 / 0** |
+| gui | compiles, no tests | **BUILD SUCCESS** |
+
+One trap worth naming: `mod exec` reported **"Executed on 2 repositories. 1 repository failed"**
+because ccfmaster exits non-zero on its 13 *pre-existing* failures. **`mod exec`'s pass/fail is not
+a regression signal** - you have to compare counts, exactly as with the other two options.
+
+## "No build changes" at scale: still zero
+
+| Repo | Build files touched | Files changed |
+|---|---:|---:|
+| ccfmaster | **0** | 123 |
+| core | **0** | 111 |
+| gui | **0** | 162 |
+
+## One footprint detail worth knowing
+
+`.moderne/run/<id>/before/` holds a **full copy of every changed source file**. In `gui`, 324 of
+the 591 `.java` files present after the run were those copies. Any repo-wide scan that does not
+exclude `.moderne/` will double-count: my own audit initially reported `gui` as having 9,285 `if`
+statements instead of 3,123 for exactly this reason. Useful for diffing; easy to trip over.
+
+## The cross-repo capability, demonstrated
+
+```
+mod study <dir> --recipe-run <id> --data-table org.openrewrite.table.SourcesFileResults --csv
+```
+
+One CSV, 396 rows, three repositories, keyed by `repositoryOrigin/repositoryPath/repositoryBranch`:
+
+| repositoryPath | files |
+|---|---:|
+| `jonico/gui-reloaded` | 162 |
+| `jonico/ccfmaster-reloaded` | 123 |
+| `jonico/core-reloaded` | 111 |
+
+Neither other option produces this. Arm A had no cross-repo view at all; Arm B hand-rolled a
+per-repo TSV. This is the clearest thing Option 3 offers that the others cannot.
