@@ -58,8 +58,11 @@ neither side is constant.
 ### Known limitations, measured rather than assumed
 
 - **Skips comparisons nested inside a method call.** `if (foo(x < 0))` is not converted, because
-  `yodaify` returns unchanged for `J.MethodInvocation`. Measured across the four corpora:
-  **126 of 3,864 sites (3.3%)**.
+  `yodaify` returns unchanged for `J.MethodInvocation`. **The real figure is 2 sites across the
+  four corpora**, not the "126 of 3,864 (3.3%)" I originally published here. That number was
+  wrong, twice over, and the correction is recorded in
+  [`results/measurement-corrections.md`](results/measurement-corrections.md) because I had already
+  put it in the experiment brief.
 - `isConstant` recognises `UPPER_SNAKE_CASE` only. Mixed-case constants and enum constants in
   other conventions are not treated as constants.
 - **AspectJ `.aj` files are unreachable.** OpenRewrite has no AspectJ parser, so the 125 ITDs in
