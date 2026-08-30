@@ -79,3 +79,67 @@ The pattern is the same each time: a cheap textual proxy for a structural questi
 more precision than it earns. The audit script in this repository still uses regex and still has
 a floor it cannot go below — that is documented in `audit/` — but any figure derived from it that
 gets put in front of another agent or into a public issue should be re-derived with a parser first.
+
+---
+
+# A claim of the Moderne arm's that also did not survive
+
+The Yoda run's Arm A reported what would have been the most valuable finding of the whole
+project:
+
+> **`rewrite-maven-plugin` only sees the source roots that exist when it runs.** `core` adds seven
+> of its eight roots via `build-helper-maven-plugin` in `generate-sources`, and `gui` adds five of
+> seven. Invoking `rewrite:run` on its own would have silently converted 310 of `core`'s 1,370
+> sites and 1,172 of `gui`'s 1,865. **1,634 sites — 40% of the corpus — hinge on prefixing the goal
+> with `generate-sources`,** and nothing warns you.
+
+Silent under-application with a successful build would be a serious defect. **It does not
+reproduce.**
+
+## The premise is real
+
+`core` really does declare `<sourceDirectory>src/core</sourceDirectory>` plus **7** roots added by
+`build-helper-maven-plugin` at `generate-sources`, and `gui` declares
+`com.collabnet.ccf/src` plus **5**. A regex estimate puts 827 of `core`'s sites (77%) and 401 of
+`gui`'s (32%) in those added roots. So the exposure would be large *if* the plugin missed them.
+
+## The consequence is not
+
+A minimal project — `src/main/java` as the primary root, `src/extra/java` added by
+`build-helper-maven-plugin` at `generate-sources`, an extra semicolon in a class in each, and
+`org.openrewrite.staticanalysis.RemoveExtraSemicolons` as the recipe:
+
+| Invocation | Files changed |
+|---|---|
+| `mvn rewrite:dryRun` | **both** `InPrimaryRoot.java` and `InBuildHelperRoot.java` |
+| `mvn generate-sources rewrite:dryRun` | identical - both |
+| `mvn rewrite:run` | **both** fixed; zero `;;` remaining in either |
+
+And the reason is in the plugin's own descriptor:
+
+```
+goal=dryRun   phase=process-test-classes   executePhase=process-test-classes
+goal=run      phase=process-test-classes   executePhase=process-test-classes
+```
+
+Both goals **fork the lifecycle up to `process-test-classes`**. `generate-sources` runs long
+before that, so `build-helper:add-source` executes as part of the fork whether you ask for it or
+not. Prefixing the goal is unnecessary.
+
+The arm had itself observed this correctly during an earlier run on the same corpus — *"the plugin
+forks the lifecycle through `process-test-classes`, so each project had to build on JDK 17 before
+any recipe could run"* — and then contradicted it here.
+
+## The kernel of truth, which is not a bug
+
+Files on **no** source root at all really are invisible to the plugin. `gui/com.collabnet.ccf.migration`
+is one: it is excluded from the build at baseline because it imports `com.collabnet.ccf.api`,
+which exists in no artifact anywhere. Arm A wrote a separate file-based runner for it, which was
+the right call. But that is expected behaviour for a build-tool plugin, not silent
+under-application, and it is nothing to do with `build-helper`.
+
+## Score so far
+
+Two of the Moderne arms' confident claims have now died in reproduction — this one, and the
+`IfElseIfConstructToSwitch` "uncompilable and behaviour-changing output" claim from the CCF run.
+One of mine has too, in the section above. Nothing gets filed on an arm's word, including my own.
