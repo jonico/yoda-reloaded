@@ -1,0 +1,5 @@
+   kiga3000                           if_statements=  119  already_yoda=   0  to_convert=  61
+   ccfmaster                          if_statements= 1093  already_yoda=   0  to_convert= 737
+   core                               if_statements= 2833  already_yoda=   2  to_convert=1416
+   gui                                if_statements= 3123  already_yoda= 137  to_convert=1875
+   rock_paper_scissors                if_statements=   17  already_yoda=   0  to_convert=   2
