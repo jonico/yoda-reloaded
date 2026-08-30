@@ -41,6 +41,18 @@ Deliberately narrow, so it is unambiguous and behaviour-preserving:
   invocations are not `J.Binary` nodes, so this is excluded structurally rather than by a special
   case.
 
+## Two implementations of the same spec
+
+| | What it is | Application time on `core` (~1,400 sites) |
+|---|---|---:|
+| [`recipe/`](recipe) | OpenRewrite `JavaIsoVisitor`, 8 unit tests — Arm A's | 266 s |
+| [`lexer/`](lexer) | Hand-written Java/AspectJ lexer + precedence-aware operand extractor, 65 self-test cases — Arm B's | **1.2 s** |
+
+Both are preserved here, so the comparison stays reproducible. Arm B's was deliberately *not*
+committed by its author and survived only by luck; keeping it makes the reuse argument honest in
+both directions. See [`results/application-benchmark.md`](results/application-benchmark.md) —
+**230x**, measured with a trivial recipe so it isolates pipeline cost from recipe logic.
+
 ## The recipe
 
 [`recipe/src/main/java/.../YodaConditions.java`](recipe/src/main/java/schnickschnackschnuck/rewrite/YodaConditions.java)
