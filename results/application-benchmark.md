@@ -20,10 +20,40 @@ cost of any particular recipe's logic.
 
 ## Result
 
+### On `core` (~1,400 sites) — the original two options
+
 | | Wall clock | Tokens | Sites converted |
 |---|---:|---:|---:|
 | `lexer/yoda.py` (Arm B) | **1.16 s** | ~0 | 1,356 in 101 files |
-| `rewrite:dryRun` pipeline | **266.4 s** | ~0 | — (trivial recipe) |
+| `rewrite:dryRun` pipeline (Arm A) | **266.4 s** | ~0 | — (trivial recipe) |
+| **Moderne CLI (Option 3)** | **blocked** | n/a | **unmeasurable** — `mod run` refuses private repos without a licence |
+
+### On the public `kiga-3000` — all three, same corpus
+
+`core` is a private repo, so Option 3 cannot run there at all. Re-measured on the one repo all
+three can process, so the third column is real rather than inferred:
+
+| | Wall clock | Sites converted | Files touched |
+|---|---:|---:|---:|
+| `lexer/yoda.py` (Arm B) | **0.21 s** | 49 (58 Yoda after) | 19, `src/` only |
+| `rewrite:dryRun` pipeline (Arm A) | **23.3 s** | — (trivial recipe) | — |
+| **`mod run` (Option 3)** | **10.0 s cold / 3.2 s warm** | **61 (61 Yoda after)** | **42** — `src/` 22, `legacy/` 12, `*.py` 5, `tools/` 3 |
+
+Three things fall out of that row:
+
+- **The CLI is ~2.3x faster than the build-plugin path on the same repo** (10.0 s vs 23.3 s cold,
+  3.2 s warm), because it caches LSTs in `.moderne/build` and reports the reuse explicitly:
+  `7s saved by using previously built LSTs`. The plugin re-parses from scratch every invocation.
+- **It is still ~48x slower than the lexer** (10.0 s vs 0.21 s), for the same reason as Arm A: a
+  purely syntactic edit pays for whole-project type attribution it never uses.
+- **It converted more, including things it should not have.** 61 sites against the lexer's 58 - the
+  3-site gap is `String.class` class literals, which the lexer declines - but also 20 files outside
+  `src/`: the vendored 2006 `legacy/` originals, and five Python files where a **Java** recipe
+  rewrote `if __name__ == "__main__":` into `if "__main__" == __name__:`.
+
+One incidental finding from this run: the lexer needed `--encoding latin-1` to read kiga at all
+(`CheckKarteiKarte.java` has an ISO-8859-1 `ü` at byte 447). Both LST-based options handled the
+encoding without being told.
 
 **230x.** And the 266.4 s I measured matches Arm A's self-reported 4m26s for `core` **exactly**,
 which is a useful cross-check on both numbers: the cost is intrinsic to the pipeline, not to its
