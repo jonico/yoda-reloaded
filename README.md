@@ -13,7 +13,7 @@ this: removing Yoda conditions, not adding them.
 ## Why this exists
 
 It came out of a series of controlled experiments comparing migrating legacy Java **with** and
-**without** Moderne/OpenRewrite ([summary](https://github.com/jonico/ccf-modernized-summary)).
+**without** Moderne/OpenRewrite (summary kept in a private repository).
 The recipe was written by the Moderne arm of the smallest of those experiments, on a project with
 exactly **two** eligible sites — where hand-editing two lines would plainly have been faster. Its
 author's reasoning, verbatim:
@@ -91,11 +91,11 @@ neither side is constant.
 
 | Corpus | `if` statements | Already Yoda | Sites to convert | Tests protecting it |
 |---|---:|---:|---:|---:|
-| [`kiga3000`](https://github.com/jonico/kiga3000-reloaded) | 119 | 0 | 61 | **83** |
+| [`kiga3000`](https://github.com/jonico/kiga-3000) | 119 | 0 | 61 | **83** |
 | [`ccfmaster`](https://github.com/jonico/ccfmaster-reloaded) | 1,093 | 0 | 737 | 473 |
 | [`core`](https://github.com/jonico/core-reloaded) | 2,833 | 2 | 1,416 | 21 |
 | [`gui`](https://github.com/jonico/gui-reloaded) | 3,123 | 137 | 1,875 | **none** |
-| [`rock_paper_scissors`](https://github.com/jonico/rock_paper_scissors-reloaded) | 17 | 0 | 2 | 54 |
+| [`rock_paper_scissors`](https://github.com/jonico/rock_paper_scissors) | 17 | 0 | 2 | 54 |
 | **total** | **7,185** | **139** | **4,091** | |
 
 `kiga3000` is the smallest but has the densest test coverage per line, so it is the corpus most
@@ -138,3 +138,9 @@ it is what makes `rewrite:run` cost 4:18-4:30 per large project, and it bought 2
 **Neither arm inverted an operator.** My own independent checker reported ~17 mismatches, every one
 of which was a bug in my checker - documented in
 [`results/measurement-corrections.md`](results/measurement-corrections.md).
+
+## Licence
+
+Apache-2.0 — see [LICENSE](LICENSE). This is original work: the recipe, the lexer, the audit
+scripts and the write-ups were all produced for this experiment. Apache-2.0 was chosen to match
+the OpenRewrite ecosystem, so the recipe can be reused without friction.
