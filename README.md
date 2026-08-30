@@ -43,10 +43,17 @@ Deliberately narrow, so it is unambiguous and behaviour-preserving:
 
 ## Two implementations of the same spec
 
-| | What it is | Application time on `core` (~1,400 sites) |
-|---|---|---:|
-| [`recipe/`](recipe) | OpenRewrite `JavaIsoVisitor`, 8 unit tests — Arm A's | 266 s |
-| [`lexer/`](lexer) | Hand-written Java/AspectJ lexer + precedence-aware operand extractor, 65 self-test cases — Arm B's | **1.2 s** |
+| | What it is | On `core` (~1,400 sites) | On public `kiga-3000` |
+|---|---|---:|---:|
+| [`recipe/`](recipe) via **build plugin** | OpenRewrite `JavaIsoVisitor`, 8 unit tests — Arm A's, `rewrite-maven-plugin` wired per repo | 266 s | 23.3 s |
+| [`lexer/`](lexer) | Hand-written Java/AspectJ lexer + precedence-aware operand extractor, 65 self-test cases — Arm B's | **1.2 s** | **0.21 s** |
+| [`recipe/`](recipe) via **Moderne CLI** | Same recipe, installed into a machine-global marketplace, **zero build-file edits** — Option 3 | **blocked** (private repo, no licence) | 10.0 s cold / **3.2 s** warm |
+
+Option 3 is written up in [`results/option3-moderne-cli.md`](results/option3-moderne-cli.md). Its
+short version: the CLI runs the *same* recipe with no build changes at all and caches LSTs between
+runs, which makes it ~2.3x faster than the plugin path on a repo both can process — but `mod run`
+refuses private repositories without a Moderne licence or tenant token, and it converted 20 files
+that neither other option touched, including five Python files.
 
 Both are preserved here, so the comparison stays reproducible. Arm B's was deliberately *not*
 committed by its author and survived only by luck; keeping it makes the reuse argument honest in
