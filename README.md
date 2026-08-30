@@ -98,5 +98,24 @@ python3 audit/yoda-audit.py "label=/path/to/src"
 
 ## Results
 
-The A/B experiment has not finished yet. Results land in [`results/`](results/) and this section
-gets the summary.
+Full detail in [`results/`](results/README.md). Headline:
+
+| | Arm A (Moderne + this recipe) | Arm B (by hand) |
+|---|---:|---:|
+| Wall clock | 33.3 min | **21.6 min** |
+| Billable tokens | 34.7 M | **6.7 M** |
+| Sites converted | **4,011** | 3,873 |
+| Tests | identical to baseline | identical to baseline |
+
+**Arm A converted 138 more sites and cost 5x the tokens.** This is the first run in the series
+where the Moderne arm produced a materially better outcome - and it was also handed a finished
+recipe, so the +418% token penalty is the worst of any run.
+
+The reason is in the decomposition: Arm A's *tool* time was lower, its *model* time 2.6x higher. It
+built an extended recipe, an AspectJ condition-splicer, a file runner and a verifier; Arm B built
+one lexer. For a purely syntactic transformation the LST's type attribution is mostly dead weight -
+it is what makes `rewrite:run` cost 4:18-4:30 per large project, and it bought 23 of 4,011 sites.
+
+**Neither arm inverted an operator.** My own independent checker reported ~17 mismatches, every one
+of which was a bug in my checker - documented in
+[`results/measurement-corrections.md`](results/measurement-corrections.md).
