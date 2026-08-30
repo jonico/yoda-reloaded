@@ -1,5 +1,9 @@
 # Results
 
+**A third option was added later: the Moderne CLI with a global recipe marketplace and no build
+changes - see [`option3-moderne-cli.md`](option3-moderne-cli.md). It is folded into the tables
+below.**
+
 Two fresh agents, no shared context, briefs byte-identical apart from one tooling paragraph,
 separate 431 MB Maven repositories, run sequentially. Arm A was given OpenRewrite **and the
 recipe in this repository, already written and tested**. Arm B was forbidden both.
@@ -9,37 +13,55 @@ own working copy, plus `audit/yoda-audit.py`.
 
 ## Cost
 
-| Metric | Arm A (Moderne + provided recipe) | Arm B (by hand) | B vs A |
-|---|---:|---:|---:|
-| **Wall clock** | 33.3 min | **21.6 min** | **−35%** |
-| ├ tool execution | 5.6 min | 9.0 min | +61% |
-| ├ model time | **21.3 min** | 8.3 min | **−61%** |
-| └ idle | 6.5 min | 4.3 min | −34% |
-| **Billable tokens** | 34.7 M | **6.7 M** | **−81%** |
-| Output tokens | 114,811 | 56,566 | −51% |
-| Turns | 259 | 97 | −63% |
-| Tool calls | 157 | 51 | −68% |
+| Metric | Arm A (Moderne + provided recipe) | Arm B (by hand) | Option 3 (Moderne CLI) | B vs A |
+|---|---:|---:|---:|---:|
+| **Wall clock** | 33.3 min | **21.6 min** | see note | −35% |
+| ├ tool execution | 5.6 min | 9.0 min | 4.6 min `mod build`, 4 repos | +61% |
+| ├ model time | **21.3 min** | 8.3 min | n/a | **−61%** |
+| └ idle | 6.5 min | 4.3 min | n/a | −34% |
+| **Billable tokens** | 34.7 M | **6.7 M** | n/a | **−81%** |
+| Output tokens | 114,811 | 56,566 | n/a | −51% |
+| Turns | 259 | 97 | n/a | −63% |
+| Tool calls | 157 | 51 | n/a | −68% |
+
+**Why Option 3's cost column is mostly `n/a` rather than zero.** Arms A and B measure *an
+agent performing a task* - designing the tool, applying it, verifying it. Option 3 as
+evaluated is a sequence of tool invocations, so tokens, model time, turns and tool calls have
+no comparable meaning and are marked `n/a` rather than misleadingly reported as 0. What *is*
+comparable is machine time, in [`application-benchmark.md`](application-benchmark.md):
+**10.0 s cold / 3.2 s warm**, against the build-plugin path's 23.3 s and the lexer's 0.21 s
+on the same repo.
 
 ## Outcome
 
-| | Baseline | Arm A | Arm B |
-|---|---:|---:|---:|
-| kiga3000 converted | 0 | **61** | 58 |
-| ccfmaster converted | 0 | **731** | **731** |
-| core converted | 2 | **1,363** | 1,350 |
-| gui converted | 137 | **1,856** | 1,734 |
-| **total converted** | — | **4,011** | 3,873 |
-| Sites still unconverted | — | 120 | 259 |
-| Files changed | — | 497 | 489 |
+| | Baseline | Arm A | Arm B | Option 3 (Moderne CLI) |
+|---|---:|---:|---:|---:|
+| kiga3000 converted | 0 | **61** | 58 | **61** (public copy) |
+| ccfmaster converted | 0 | **731** | **731** | **blocked** - licence |
+| core converted | 2 | **1,363** | 1,350 | **blocked** - licence |
+| gui converted | 137 | **1,856** | 1,734 | **blocked** - licence |
+| **total converted** | - | **4,011** | 3,873 | **61 of a possible 4,089** |
+| Sites still unconverted | - | 120 | 259 | not measurable for the private 3 |
+| Files changed | - | 497 | 489 | 42 in kiga alone (vs 23 / 22) |
+
+`mod build` succeeded on all four repos (274.8 s cold). `mod run` then refused all four with
+`A valid license is required: this repository is not an open source repository`, because each
+`origin` points at a private GitHub remote. The 61-site figure is from the public
+`kiga-3000`, where the full cycle works with no licence and no tenant token.
 
 **Tests, independently re-run on JDK 25 — both arms identical to baseline:**
 
-| Repo | Baseline | Arm A | Arm B |
-|---|---|---|---|
-| kiga3000 | 83 / 0 / 0 / 0 | **same** | **same** |
-| core | 21 / 0 / 0 / 0 | **same** | **same** |
-| ccfmaster | 488 / 7 / 6 / 2 (473 pass) | **same** | **same** |
-| gui | compiles, no tests | **same** | **same** |
+| Repo | Baseline | Arm A | Arm B | Option 3 (Moderne CLI) |
+|---|---|---|---|---|
+| kiga3000 | 83 / 0 / 0 / 0 | **same** | **same** | **same** (via `mod exec`, confirmed directly) |
+| core | 21 / 0 / 0 / 0 | **same** | **same** | not run |
+| ccfmaster | 488 / 7 / 6 / 2 (473 pass) | **same** | **same** | not run |
+| gui | compiles, no tests | **same** | **same** | not run |
+
+Option 3 was held to the same bar: `mod exec -- mvn clean test` reports only
+`✓ Execution succeeded` and does **not** surface counts, so they were read from
+`.moderne/exec/<id>/exec.log` (`Tests run: 83, Failures: 0`) and confirmed with a direct
+`mvn clean test`.
 
 Both arms also confirmed the *individual* failing test methods in ccfmaster are unchanged, so the
 equal counts are not a coincidence.
