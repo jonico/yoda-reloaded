@@ -70,9 +70,10 @@ comparison in a compound condition converts independently.
 The detail worth stealing: it moves whitespace with the **padding slots** rather than with the
 expressions, so `if (choice < 0)` becomes `if (0 > choice)` and not `if (0 >choice )`.
 
-8 unit tests pin the spec, including the four must-not-change classes: `equals` calls,
+10 unit tests pin the spec, including the four must-not-change classes: `equals` calls,
 comparisons outside `if` conditions, already-Yoda comparisons, and comparisons where both or
-neither side is constant.
+neither side is constant. Two of the ten guard against defects found and fixed after the original
+experiment — see [`results/recipe-fixes-and-verification.md`](results/recipe-fixes-and-verification.md).
 
 ### Known limitations, measured rather than assumed
 
@@ -138,6 +139,12 @@ it is what makes `rewrite:run` cost 4:18-4:30 per large project, and it bought 2
 **Neither arm inverted an operator.** My own independent checker reported ~17 mismatches, every one
 of which was a bug in my checker - documented in
 [`results/measurement-corrections.md`](results/measurement-corrections.md).
+
+## Follow-up: recipe fixes and a verification run
+
+Two further defects were found and fixed after the run above, and a fresh verification run was
+done against the fixed recipe on four codebases. Full detail in
+[`results/recipe-fixes-and-verification.md`](results/recipe-fixes-and-verification.md).
 
 ## Licence
 

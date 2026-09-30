@@ -4,6 +4,11 @@
 changes - see [`option3-moderne-cli.md`](option3-moderne-cli.md). It is folded into the tables
 below.**
 
+**Two recipe defects were found and fixed after this experiment, plus a verification run against
+the fixed recipe on four codebases - see
+[`recipe-fixes-and-verification.md`](recipe-fixes-and-verification.md), including a section on
+token savings from `mgrep` and `rtk`.**
+
 Two fresh agents, no shared context, briefs byte-identical apart from one tooling paragraph,
 separate 431 MB Maven repositories, run sequentially. Arm A was given OpenRewrite **and the
 recipe in this repository, already written and tested**. Arm B was forbidden both.
