@@ -118,6 +118,12 @@ python3 audit/yoda-audit.py "label=/path/to/src"
 
 ## Results
 
+**This section is the original run, and its recipe had two defects, since fixed (`1.2.0`,
+`1.3.0` - see [Follow-up](#follow-up-recipe-fixes-and-a-verification-run) below). A later run with
+the fixed recipe found the opposite of the cost result below: ~6x cheaper than manual, not 5x more
+expensive. Read this section as "what a buggy recipe cost," not as the current state of the
+comparison.**
+
 Full detail in [`results/`](results/README.md). Headline:
 
 | | Arm A (Moderne + this recipe) | Arm B (by hand) |
@@ -129,7 +135,8 @@ Full detail in [`results/`](results/README.md). Headline:
 
 **Arm A converted 138 more sites and cost 5x the tokens.** This is the first run in the series
 where the Moderne arm produced a materially better outcome - and it was also handed a finished
-recipe, so the +418% token penalty is the worst of any run.
+recipe, so the +418% token penalty is the worst of any run. (Again: this recipe had defects at the
+time, since fixed - see the follow-up below for what changed once it didn't.)
 
 The reason is in the decomposition: Arm A's *tool* time was lower, its *model* time 2.6x higher. It
 built an extended recipe, an AspectJ condition-splicer, a file runner and a verifier; Arm B built
@@ -142,9 +149,16 @@ of which was a bug in my checker - documented in
 
 ## Follow-up: recipe fixes and a verification run
 
-Two further defects were found and fixed after the run above, and a fresh verification run was
-done against the fixed recipe on four codebases. Full detail in
-[`results/recipe-fixes-and-verification.md`](results/recipe-fixes-and-verification.md).
+Two further defects were found and fixed after the run above (`1.2.0`, `1.3.0`). With the fixed
+recipe, a fresh with/without comparison on the same four codebases found the **opposite** result
+from the "Results" section above: the recipe is now **~6x cheaper than manual** (18.89M vs 113.10M
+tokens), not 5x more expensive - because a correct recipe has nothing left for anyone to debug,
+and every manual run in this follow-up built its own detector from scratch and found a real bug in
+it before trusting it (two independently hit the identical line-ending corruption bug).
+
+Full detail: [`results/recipe-fixes-and-verification.md`](results/recipe-fixes-and-verification.md)
+in this repo, or the standalone write-up:
+[gist.github.com/jonico/e81def4a79ee7d42929ba15e6ce00f85](https://gist.github.com/jonico/e81def4a79ee7d42929ba15e6ce00f85).
 
 ## Licence
 
