@@ -64,8 +64,10 @@ Two additional tools were available during this run: `mgrep` (semantic code sear
 CLI proxy that filters/condenses shell output before it reaches the model).
 
 **`rtk` — substantial, and structural.** It runs on every shell command automatically, not
-something an agent opts into. Its own local tracking for this work: 349 commands, 18.55M raw
-output tokens condensed to 51K delivered (99.7%). Because that condensation happens before content
+something an agent opts into. Its local tracking database records a `project_path` per command;
+summed over exactly the paths this work touched (not a whole-machine total, which would mix in
+unrelated concurrent activity): 625 commands, 19.09M raw output tokens condensed to 134,615
+delivered (99.3%). Because that condensation happens before content
 ever enters the conversation, it is already reflected in the billable-token figures above, not a
 separate saving on top of them — verbose `mvn test` output (488 tests, Surefire noise) is exactly
 the kind of content it exists to strip.
