@@ -136,6 +136,22 @@ class YodaConditionsTest implements RewriteTest {
     }
 
     @Test
+    void neverReordersWhenTheMovedOperandIsAFieldOrArrayAccessOffAMethodCall() {
+        rewriteRun(
+                java(
+                        """
+                        class A {
+                            Object[] getChildren() { return null; }
+                            Object[][] getGroups() { return null; }
+                            void m() {
+                                if (getChildren().length == 0) { }
+                                if (getGroups()[0].length == 0) { }
+                            }
+                        }
+                        """));
+    }
+
+    @Test
     void neverReordersEqualsCalls() {
         rewriteRun(
                 java(

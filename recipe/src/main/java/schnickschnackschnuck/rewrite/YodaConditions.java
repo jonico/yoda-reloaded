@@ -29,10 +29,11 @@ import org.openrewrite.java.tree.Space;
  *   <li>{@code x.equals("lit")} is <b>not</b> turned into {@code "lit".equals(x)}. That changes null
  *       behaviour. Method invocations are not {@code J.Binary} nodes, so they are excluded
  *       structurally rather than by a special case.
- *   <li>The operand being moved must itself be a plain variable, field, or array element -
- *       {@code detail.length() > 0} and {@code entity.length() < LIMIT - 1} are left alone, since
- *       moving a method call or an arithmetic expression across a comparison is not something this
- *       recipe assumes is safe in general.
+ *   <li>The operand being moved must itself be a plain variable, field, or array element, however
+ *       deeply chained - {@code detail.length() > 0}, {@code entity.length() < LIMIT - 1}, and
+ *       {@code getChildren().length == 0} are all left alone, since moving a method call or an
+ *       arithmetic expression across a comparison is not something this recipe assumes is safe in
+ *       general, no matter how deep in the chain the call sits.
  *   <li>Only {@code .java} source files are visited. {@code rewrite-python} models Python source
  *       using the same {@code J} tree types, so an unscoped {@code JavaIsoVisitor} would otherwise
  *       also match {@code .py} files in a run that covers both languages.
@@ -192,11 +193,25 @@ public class YodaConditions extends Recipe {
                 return false;
             }
 
-            /** A plain variable, field, or array element - not a method call or an expression. */
+            /**
+             * A plain variable, field, or array element, however deeply chained (`a.b.c`,
+             * `arr[i].b`, `a.b[i]`) - as long as no step in the chain is a method call. Checking
+             * only the outermost node's type is not enough: {@code getChildren().length} is a
+             * {@link J.FieldAccess} at the top, same as {@code list.length}, but its target is a
+             * method call. Recurse into the target/indexed expression so a method call anywhere
+             * in the chain disqualifies the whole thing.
+             */
             private boolean isSimpleReference(Expression e) {
-                return e instanceof J.Identifier
-                        || e instanceof J.FieldAccess
-                        || e instanceof J.ArrayAccess;
+                if (e instanceof J.Identifier) {
+                    return true;
+                }
+                if (e instanceof J.FieldAccess) {
+                    return isSimpleReference(((J.FieldAccess) e).getTarget());
+                }
+                if (e instanceof J.ArrayAccess) {
+                    return isSimpleReference(((J.ArrayAccess) e).getIndexed());
+                }
+                return false;
             }
 
             private boolean isConstantName(String name) {
