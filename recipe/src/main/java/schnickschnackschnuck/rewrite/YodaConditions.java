@@ -2,6 +2,7 @@ package schnickschnackschnuck.rewrite;
 
 import org.openrewrite.ExecutionContext;
 import org.openrewrite.Recipe;
+import org.openrewrite.SourceFile;
 import org.openrewrite.TreeVisitor;
 import org.openrewrite.java.JavaIsoVisitor;
 import org.openrewrite.java.tree.Expression;
@@ -28,6 +29,13 @@ import org.openrewrite.java.tree.Space;
  *   <li>{@code x.equals("lit")} is <b>not</b> turned into {@code "lit".equals(x)}. That changes null
  *       behaviour. Method invocations are not {@code J.Binary} nodes, so they are excluded
  *       structurally rather than by a special case.
+ *   <li>The operand being moved must itself be a plain variable, field, or array element -
+ *       {@code detail.length() > 0} and {@code entity.length() < LIMIT - 1} are left alone, since
+ *       moving a method call or an arithmetic expression across a comparison is not something this
+ *       recipe assumes is safe in general.
+ *   <li>Only {@code .java} source files are visited. {@code rewrite-python} models Python source
+ *       using the same {@code J} tree types, so an unscoped {@code JavaIsoVisitor} would otherwise
+ *       also match {@code .py} files in a run that covers both languages.
  * </ul>
  *
  * <p>Nested boolean structure is handled: {@code &&}, {@code ||} and parenthesised sub-expressions
@@ -53,6 +61,14 @@ public class YodaConditions extends Recipe {
     @Override
     public TreeVisitor<?, ExecutionContext> getVisitor() {
         return new JavaIsoVisitor<ExecutionContext>() {
+
+            @Override
+            public boolean isAcceptable(SourceFile sourceFile, ExecutionContext ctx) {
+                // rewrite-python models Python source as J trees too, so an unguarded
+                // JavaIsoVisitor matches .py files as well as .java ones. Scope explicitly.
+                return sourceFile.getSourcePath().toString().endsWith(".java")
+                        && super.isAcceptable(sourceFile, ctx);
+            }
 
             @Override
             public J.If visitIf(J.If iff, ExecutionContext ctx) {
@@ -101,6 +117,15 @@ public class YodaConditions extends Recipe {
                 }
                 if (isConstant(binary.getLeft()) || !isConstant(binary.getRight())) {
                     // Already Yoda, or no constant operand, or both sides constant.
+                    return binary;
+                }
+                if (!isSimpleReference(binary.getLeft())) {
+                    // The operand being moved must be a plain variable, field, or array element -
+                    // not a method call or an arithmetic expression. Reordering `list.size() > 0`
+                    // to `0 < list.size()` happens to be behaviour-preserving today, but nothing
+                    // about "moves a method call across a comparison" should be assumed safe in
+                    // general (evaluation order, side effects), so this is excluded structurally
+                    // rather than proven safe case by case.
                     return binary;
                 }
                 return swap(binary);
@@ -165,6 +190,13 @@ public class YodaConditions extends Recipe {
                     return isConstantName(((J.FieldAccess) e).getSimpleName());
                 }
                 return false;
+            }
+
+            /** A plain variable, field, or array element - not a method call or an expression. */
+            private boolean isSimpleReference(Expression e) {
+                return e instanceof J.Identifier
+                        || e instanceof J.FieldAccess
+                        || e instanceof J.ArrayAccess;
             }
 
             private boolean isConstantName(String name) {

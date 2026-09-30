@@ -119,6 +119,23 @@ class YodaConditionsTest implements RewriteTest {
     }
 
     @Test
+    void neverReordersWhenTheMovedOperandIsAMethodCallOrExpression() {
+        rewriteRun(
+                java(
+                        """
+                        class A {
+                            static final int LIMIT = 3;
+                            int getClickCount() { return 0; }
+                            void m(String detail, java.util.List<String> list) {
+                                if (detail.length() > 0) { }
+                                if (getClickCount() == 2) { }
+                                if (list.size() > LIMIT) { }
+                            }
+                        }
+                        """));
+    }
+
+    @Test
     void neverReordersEqualsCalls() {
         rewriteRun(
                 java(
