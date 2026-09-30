@@ -3,16 +3,15 @@
 Two defects were found in `YodaConditions` after the original experiment, both now fixed and
 released (`1.2.0`, `1.3.0`). The unit suite grew from 8 to 10 cases to cover them.
 
-## What was wrong
+## Two exclusions the recipe now enforces
 
-1. **Method-call operands were not actually excluded.** The spec requires the operand being moved
-   to be a plain variable, field, or array element — never a method call. The implementation
-   checked that the constant side was constant, but never checked what the *other* side was.
-   `detail.length() > 0` was wrongly converted to `0 < detail.length()`. Fixed in `1.2.0` by adding
+1. **Method-call operands are excluded.** The spec requires the operand being moved to be a plain
+   variable, field, or array element — never a method call. `detail.length() > 0` must stay
+   untouched (`0 < detail.length()` would be wrong). Fixed in `1.2.0` by adding
    `isSimpleReference`, which gates which operand may be moved.
-2. **The exclusion didn't recurse through a chain.** `getChildren().length` is a `FieldAccess` at
-   the top — the same shape as a plain `list.length` — but its target is a method call, and the
-   check only looked at the outermost node. Found on one real site, in `gui`:
+2. **The exclusion recurses through a chain.** `getChildren().length` is a `FieldAccess` at the
+   top — the same shape as a plain `list.length` — but its target is a method call, so the check
+   needs to look past the outermost node, not just at it. Found on one real site, in `gui`:
    `dialogComposite.getChildren().length == 0`, an `==` comparison where reordering happens to be
    harmless (`==` is order-independent regardless of side effects) but still out of spec. Fixed in
    `1.3.0` by making `isSimpleReference` recurse into `FieldAccess`'s target and `ArrayAccess`'s
@@ -57,6 +56,54 @@ build/test commands — not against the agent's own report of them.
 
 Zero incorrect operator inversions across all four. No `.equals()` reordered. No non-`.java` file
 touched.
+
+## A genuine with/without comparison, now that the recipe is fixed
+
+A fresh manual (no-Moderne) arm was also run on each of the same four repos, from the same
+starting commit, each independently re-verified the same way.
+
+| Repo | Recipe (fixed) | Manual | Ratio |
+|---|---:|---:|---:|
+| `kiga3000-reloaded` | 4.54M | 15.60M | 3.4x |
+| `ccfmaster-reloaded` | 4.49M | 10.83M | 2.4x |
+| `core-reloaded` | 4.13M | 16.41M | 4.0x |
+| `gui-reloaded` | 5.73M | 70.26M | 12.3x |
+| **Total** | **18.89M** | **113.10M** | **~6.0x** |
+
+**This is the reverse of the original six-experiment finding**, which measured a recipe that had
+the two defects above. The recipe's own application cost hasn't changed - a correct run was always
+fast (~58 seconds of recipe work for a whole estate, measured in the original experiment). What
+changed is that it now stays correct on the first try, so nothing downstream has to detect and
+undo its mistakes. The manual side paid a larger version of the same tax the fixed recipe no
+longer pays:
+
+- **Every manual run built its own detector from scratch, and every one found a real bug in it
+  before trusting it.** `ccfmaster`: a naive line-ending read/write silently converted the repo's
+  CRLF files to LF, caught by a suspicious `git diff --stat`. `core`: two bugs caught by a
+  dedicated self-test file built *before* touching the real repo - literal operands wrongly
+  rejected, and the same CRLF issue. `gui`: the CRLF issue recurred independently in a completely
+  different agent's from-scratch tooling; on top of that, a mid-chain method-call classifier gap
+  (`dialogComposite.getChildren().length` - the exact shape fixed in the recipe above) had to be
+  found and closed by hand, and disambiguating genuine `UPPER_SNAKE_CASE` constants from
+  same-spelled enum members required grepping every `enum` declaration across all seven bundles.
+- **The task wording was ambiguous about `==`/`!=` scope**, and one agent's defensible but
+  unintended literal reading (Java Language Specification terms "relational operators" as
+  `<,>,<=,>=` only) cost a full second pass over `gui` - its 70.26M reflects doing the work twice.
+- **The CRLF bug appearing independently in two of four runs is the clearest single data point.**
+  Neither agent saw the other's work; both wrote similar text-processing tools from scratch and
+  both paid to discover and fix the identical mistake. A recipe operating on a parsed syntax tree
+  doesn't have this problem structurally.
+- **Comments are the one category the recipe is structurally immune to.** It can't "see" comment
+  text - it isn't part of the parsed tree. A text/regex tool has to detect and skip comments
+  correctly every run, and one manual run in this comparison got it wrong once (edited inside a
+  `/* */` block comment containing example code, zero runtime effect) - the kind of mistake that
+  is definitionally impossible for an AST-based recipe.
+
+This isn't "recipes are always cheaper." A recipe that works correctly amortises its engineering
+cost across every future run; hand-written tooling pays its engineering cost again, in full, every
+time, because nothing about it is reused. The original experiment's finding - that a *broken*
+recipe cost more than manual work - was true for the same underlying reason, stated the other way
+around. Correctness, not the tool category, is what the cost tracks.
 
 ## Token savings from mgrep and rtk
 
